@@ -1,34 +1,66 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException, } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
+import { CreateUserDto } from './dto/create-user.dto';
+import { LoginUserDto } from './dto/login-user.dto';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+    constructor(private prisma: PrismaService, private jwtService: JwtService) { }
 
-  async register(userData: { email: string; username: string; password: string }) {
-    const { email, username, password } = userData;
 
-    const exists = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { username }],
-      },
-    });
+    async register(createUserDto: CreateUserDto) {
+        const { email, username, password } = createUserDto;
 
-    if (exists) {
-      throw new ConflictException('Email or username already exists');
+        const existingUser = await this.prisma.user.findFirst({
+            where: {
+                OR: [{ email }, { username }],
+            },
+        });
+
+        if (existingUser) {
+            throw new ConflictException('Email or username already exists');
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = await this.prisma.user.create({
+            data: {
+                email,
+                username,
+                password: hashedPassword,
+            },
+        });
+        return {
+            user: this.excludePassword(user)
+        };
     }
 
-    const hashed = await bcrypt.hash(password, 10);
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        username,
-        password: hashed,
-      },
-    });
+    async login(loginUserDto: LoginUserDto) {
+        const { email, password } = loginUserDto;
 
-    const { password: _, ...result } = user;
-    return { user: result };
-  }
+        const user = await this.prisma.user.findUnique({
+            where: { email },
+        });
+
+        if (!user) {
+            throw new UnauthorizedException('Invalid credentials');
+        }
+        const passwordValid = await bcrypt.compare(password, user.password);
+        if (!passwordValid) {
+            throw new UnauthorizedException('Invalid credentials');
+        }
+        return {
+            user: this.excludePassword(user),
+        };
+    }
+
+    private excludePassword(user: any) {
+        const { password, createdAt, updatedAt, ...result } = user;
+        return {
+            ...result,
+            bio: result.bio || "",
+            image: result.image || null,
+        };
+    }
 }
