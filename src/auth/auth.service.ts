@@ -8,7 +8,6 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { User, UserResponse } from './interfaces/user.interface';
 import { JwtPayload } from './strategies/jwt.strategy';
 
@@ -72,75 +71,6 @@ export class AuthService {
     return {
       user: {
         ...this.excludePassword(user),
-        token,
-      },
-    };
-  }
-
-  async getCurrentUser(userId: number): Promise<{ user: UserResponse }> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    return {
-      user: this.excludePassword(user),
-    };
-  }
-
-  async updateUser(
-    userId: number,
-    updateUserDto: UpdateUserDto,
-  ): Promise<{ user: UserResponse }> {
-    const { email, username, password, bio, image } = updateUserDto;
-
-    // Check if email or username already exists (excluding current user)
-    if (email || username) {
-      const conditions: Array<{ email?: string; username?: string }> = [];
-      if (email) conditions.push({ email });
-      if (username) conditions.push({ username });
-
-      const existingUser = await this.prisma.user.findFirst({
-        where: {
-          AND: [{ id: { not: userId } }, { OR: conditions }],
-        },
-      });
-
-      if (existingUser) {
-        throw new ConflictException('Email or username already exists');
-      }
-    }
-
-    // Prepare update data
-    const updateData: {
-      email?: string;
-      username?: string;
-      password?: string;
-      bio?: string;
-      image?: string;
-    } = {};
-
-    if (email !== undefined) updateData.email = email;
-    if (username !== undefined) updateData.username = username;
-    if (bio !== undefined) updateData.bio = bio;
-    if (image !== undefined) updateData.image = image;
-    if (password !== undefined) {
-      updateData.password = await bcrypt.hash(password, 10);
-    }
-
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-    });
-
-    const token = this.generateToken(updatedUser);
-
-    return {
-      user: {
-        ...this.excludePassword(updatedUser),
         token,
       },
     };
