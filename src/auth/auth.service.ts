@@ -76,6 +76,20 @@ export class AuthService {
     };
   }
 
+  async getCurrentUser(userId: number): Promise<{ user: UserResponse }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return {
+      user: this.excludePassword(user),
+    };
+  }
+
   private generateToken(user: User): string {
     const payload: JwtPayload = {
       sub: user.id,
@@ -85,7 +99,8 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
-  private excludePassword(user: User): UserResponse {   
+  private excludePassword(user: User): UserResponse {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, createdAt, updatedAt, ...result } = user;
     return {
       ...result,
