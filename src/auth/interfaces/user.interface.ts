@@ -15,4 +15,5 @@ export interface UserResponse {
   username: string;
   bio: string;
   image: string | null;
+  token?: string;
 }
