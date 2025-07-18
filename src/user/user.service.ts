@@ -30,7 +30,14 @@ export class UserService {
     userId: number,
     updateUserDto: UpdateUserDto,
   ): Promise<{ user: UserResponse }> {
-    const { email, username, password, bio, image } = updateUserDto;
+    const { email, username, password, confirmPassword, bio, image } =
+      updateUserDto;
+
+    if (password && !confirmPassword) {
+      throw new ConflictException(
+        'Password confirmation is required when updating password',
+      );
+    }
 
     if (email || username) {
       const conditions: Array<{ email?: string; username?: string }> = [];
