@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
+import { ArticleModule } from './article/article.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
@@ -15,6 +16,7 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
     }),
     AuthModule,
     UserModule,
+    ArticleModule,
     PrismaModule,
     CommonModule,
   ],
