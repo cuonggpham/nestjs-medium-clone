@@ -26,9 +26,7 @@ export class AllExceptionsFilter
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
-      const exceptionResponse = exception.getResponse();
-
-      message = exceptionResponse;
+      message = exception.getResponse();
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
       message = 'Internal server error';
