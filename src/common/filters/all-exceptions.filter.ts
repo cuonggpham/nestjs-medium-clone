@@ -38,7 +38,7 @@ export class AllExceptionsFilter
       message = 'Internal server error';
 
       this.logger.error(
-        `Internal server error: ${String(exception)}`,
+        `[ERROR] Internal server error: ${String(exception)}`,
         exception instanceof Error ? exception.stack : undefined,
       );
     }
@@ -51,7 +51,7 @@ export class AllExceptionsFilter
     };
 
     this.logger.error(
-      `HTTP ${status} Error - ${request.method} ${request.url}`,
+      `[ERROR] HTTP ${status} Error - ${request.method} ${request.url}`,
       JSON.stringify(errorResponse),
     );
 

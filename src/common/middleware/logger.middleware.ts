@@ -9,11 +9,13 @@ export class LoggerMiddleware implements NestMiddleware {
     const { method, originalUrl } = req;
     const timestamp = new Date().toISOString();
 
-    this.logger.log(`${method} ${originalUrl} - ${timestamp}`);
+    this.logger.log(`[INFO] ${method} ${originalUrl} - ${timestamp}`);
 
     res.on('finish', () => {
       const { statusCode } = res;
-      this.logger.log(`${method} ${originalUrl} ${statusCode} - ${timestamp}`);
+      this.logger.log(
+        `[INFO] ${method} ${originalUrl} ${statusCode} - ${timestamp}`,
+      );
     });
 
     next();
