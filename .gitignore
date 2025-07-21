@@ -1,4 +1,4 @@
-# compiled output
+# Compiled output
 /dist
 /node_modules
 /build
@@ -9,15 +9,20 @@ logs
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
-yarn-error.log*-error.log*
+yarn-error.log*
 lerna-debug.log*
 
 # OS
 .DS_Store
+Thumbs.db
 
 # Tests
 /coverage
 /.nyc_output
+/test-results/
+/playwright-report/
+/test-results/
+/playwright/.cache/
 
 # IDEs and editors
 /.idea
@@ -27,6 +32,8 @@ lerna-debug.log*
 *.launch
 .settings/
 *.sublime-workspace
+*.swp
+*.swo
 
 # IDE - VSCode
 .vscode/*
@@ -35,14 +42,23 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# dotenv environment variable files
+# Environment variables
 .env
+.env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env.local
 
-# temp directory
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Prisma
+/generated/prisma
+/prisma/dev.db
+
+# Temp directories
 .temp
 .tmp
 
@@ -55,4 +71,88 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-/generated/prisma
+# NestJS specific
+/uploads
+/dist
+/build
+
+# Docker
+docker-compose.override.yml
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Package managers
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# TypeScript
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# Editor directories and files
+.vscode/
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

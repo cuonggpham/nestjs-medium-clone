@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { User, UserResponse } from './interfaces/user.interface';
+import { JwtPayload } from './strategies/jwt.strategy';
 
 @Injectable()
 export class AuthService {
@@ -40,8 +41,13 @@ export class AuthService {
         password: hashedPassword,
       },
     });
+
+    const token = this.generateToken(user);
     return {
-      user: this.excludePassword(user),
+      user: {
+        ...this.excludePassword(user),
+        token,
+      },
     };
   }
 
@@ -59,9 +65,24 @@ export class AuthService {
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    const token = this.generateToken(user);
+
     return {
-      user: this.excludePassword(user),
+      user: {
+        ...this.excludePassword(user),
+        token,
+      },
     };
+  }
+
+  private generateToken(user: User): string {
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      username: user.username,
+    };
+    return this.jwtService.sign(payload);
   }
 
   private excludePassword(user: User): UserResponse {
