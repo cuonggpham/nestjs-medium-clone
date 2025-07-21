@@ -39,6 +39,12 @@ export class UserService {
       );
     }
 
+    if (password && confirmPassword && password !== confirmPassword) {
+      throw new ConflictException(
+        'Password confirmation does not match password',
+      );
+    }
+
     if (email || username) {
       const conditions: Array<{ email?: string; username?: string }> = [];
       if (email) conditions.push({ email });
