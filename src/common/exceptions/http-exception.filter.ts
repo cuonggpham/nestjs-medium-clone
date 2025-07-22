@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { ApiErrorResponse } from '../interfaces/api-response.interface';
 
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -16,10 +17,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
     const status = exception.getStatus();
+    const exceptionResponse = exception.getResponse();
 
-    const errorResponse = {
+    const errorResponse: ApiErrorResponse = {
+      success: false,
       statusCode: status,
-      message: exception.getResponse(),
+      message:
+        typeof exceptionResponse === 'string'
+          ? exceptionResponse
+          : JSON.stringify(exceptionResponse),
+      data: null,
       timestamp: new Date().toISOString(),
       path: request.url,
     };
