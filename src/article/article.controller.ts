@@ -7,8 +7,6 @@ import {
   Body,
   Param,
   UseGuards,
-  HttpCode,
-  HttpStatus,
 } from '@nestjs/common';
 import { ArticleService } from './article.service';
 import { CreateArticleRequestDto } from './dto/create-article-request.dto';
@@ -54,11 +52,10 @@ export class ArticleController {
 
   @Delete(':slug')
   @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.NO_CONTENT)
   async deleteArticle(
     @Param('slug') slug: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    await this.articleService.deleteArticle(slug, user.id);
+    return this.articleService.deleteArticle(slug, user.id);
   }
 }

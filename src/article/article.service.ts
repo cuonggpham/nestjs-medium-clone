@@ -161,7 +161,10 @@ export class ArticleService {
     };
   }
 
-  async deleteArticle(slug: string, userId: number): Promise<void> {
+  async deleteArticle(
+    slug: string,
+    userId: number,
+  ): Promise<{ message: string; deletedSlug: string }> {
     const article = await this.prisma.article.findUnique({
       where: { slug },
     });
@@ -177,6 +180,11 @@ export class ArticleService {
     await this.prisma.article.delete({
       where: { slug },
     });
+
+    return {
+      message: 'Article deleted successfully',
+      deletedSlug: slug,
+    };
   }
 
   private generateSlug(title: string): string {
