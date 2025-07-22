@@ -32,7 +32,10 @@ export class ArticleController {
     @Body() createArticleRequest: CreateArticleRequestDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.articleService.create(createArticleRequest.article, user.id);
+    return this.articleService.createArticle(
+      createArticleRequest.article,
+      user.id,
+    );
   }
 
   @Put(':slug')

@@ -13,7 +13,7 @@ import { Article, ArticleResponse } from './interfaces/article.interface';
 export class ArticleService {
   constructor(private prisma: PrismaService) {}
 
-  async create(
+  async createArticle(
     createArticleDto: CreateArticleDto,
     authorId: number,
   ): Promise<{ article: ArticleResponse }> {
