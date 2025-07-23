@@ -6,11 +6,13 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ArticleService } from './article.service';
 import { CreateArticleRequestDto } from './dto/create-article-request.dto';
 import { UpdateArticleRequestDto } from './dto/update-article-request.dto';
+import { ListArticlesQueryDto } from './dto/list-articles-query.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
@@ -18,6 +20,20 @@ import { AuthenticatedUser } from '../common/interfaces/authenticated-user.inter
 @Controller('articles')
 export class ArticleController {
   constructor(private readonly articleService: ArticleService) {}
+
+  @Get()
+  async listArticles(@Query() query: ListArticlesQueryDto) {
+    return this.articleService.listArticles(query);
+  }
+
+  @Get('feed')
+  @UseGuards(JwtAuthGuard)
+  async getFeedArticles(
+    @Query() query: { limit?: number; offset?: number },
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.articleService.getFeedArticles(query, user.id);
+  }
 
   @Get(':slug')
   async getArticle(@Param('slug') slug: string) {
