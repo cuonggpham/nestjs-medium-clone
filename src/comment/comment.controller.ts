@@ -10,6 +10,11 @@ import {
 } from '@nestjs/common';
 import { CommentService } from './comment.service';
 import { CreateCommentRequestDto } from './dto/create-comment-request.dto';
+import {
+  CommentResponseDto,
+  CommentsResponseDto,
+  DeleteCommentResponseDto,
+} from './dto/comment-response.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuthenticatedUser } from '../common/interfaces/authenticated-user.interface';
@@ -19,7 +24,7 @@ export class CommentController {
   constructor(private readonly commentService: CommentService) {}
 
   @Get()
-  async getComments(@Param('slug') slug: string) {
+  async getComments(@Param('slug') slug: string): Promise<CommentsResponseDto> {
     return this.commentService.getCommentsByArticleSlug(slug);
   }
 
@@ -29,7 +34,7 @@ export class CommentController {
     @Param('slug') slug: string,
     @Body() createCommentRequest: CreateCommentRequestDto,
     @CurrentUser() user: AuthenticatedUser,
-  ) {
+  ): Promise<CommentResponseDto> {
     return this.commentService.createComment(
       slug,
       createCommentRequest.comment,
@@ -43,7 +48,7 @@ export class CommentController {
     @Param('slug') slug: string,
     @Param('id', ParseIntPipe) commentId: number,
     @CurrentUser() user: AuthenticatedUser,
-  ) {
+  ): Promise<DeleteCommentResponseDto> {
     return this.commentService.deleteComment(slug, commentId, user.id);
   }
 }
