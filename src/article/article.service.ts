@@ -9,10 +9,11 @@ import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ListArticlesQueryDto } from './dto/list-articles-query.dto';
 import {
-  Article,
-  ArticleResponse,
-  ArticleListResponse,
-} from './interfaces/article.interface';
+  ArticleResponseDto,
+  ArticlesResponseDto,
+  DeleteArticleResponseDto,
+} from './dto/article-response.dto';
+import { Article, ArticleResponse } from './interfaces/article.interface';
 
 @Injectable()
 export class ArticleService {
@@ -21,7 +22,7 @@ export class ArticleService {
   async createArticle(
     createArticleDto: CreateArticleDto,
     authorId: number,
-  ): Promise<{ article: ArticleResponse }> {
+  ): Promise<ArticleResponseDto> {
     const { title, description, body, tagList } = createArticleDto;
 
     const baseSlug = this.generateSlug(title);
@@ -54,7 +55,7 @@ export class ArticleService {
     };
   }
 
-  async findBySlug(slug: string): Promise<{ article: ArticleResponse }> {
+  async findBySlug(slug: string): Promise<ArticleResponseDto> {
     const article = await this.prisma.article.findUnique({
       where: { slug },
       include: {
@@ -83,7 +84,7 @@ export class ArticleService {
     slug: string,
     updateArticleDto: UpdateArticleDto,
     userId: number,
-  ): Promise<{ article: ArticleResponse }> {
+  ): Promise<ArticleResponseDto> {
     const { title, description, body, tagList } = updateArticleDto;
 
     const existingArticle = await this.prisma.article.findUnique({
@@ -169,7 +170,7 @@ export class ArticleService {
   async deleteArticle(
     slug: string,
     userId: number,
-  ): Promise<{ message: string; deletedSlug: string }> {
+  ): Promise<DeleteArticleResponseDto> {
     const article = await this.prisma.article.findUnique({
       where: { slug },
     });
@@ -194,7 +195,7 @@ export class ArticleService {
 
   async listArticles(
     query: ListArticlesQueryDto,
-  ): Promise<ArticleListResponse> {
+  ): Promise<ArticlesResponseDto> {
     const { tag, author, favorited, limit = 20, offset = 0 } = query;
 
     const where: { authorId?: number } = {};
@@ -251,7 +252,7 @@ export class ArticleService {
   async getFeedArticles(
     query: { limit?: number; offset?: number },
     userId: number,
-  ): Promise<ArticleListResponse> {
+  ): Promise<ArticlesResponseDto> {
     const { limit = 20, offset = 0 } = query;
 
     // implement following relationship later, for now return own articles
