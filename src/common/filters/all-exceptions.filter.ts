@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
 import { Request, Response } from 'express';
+import { ApiErrorResponse } from '../interfaces/api-response.interface';
 
 @Catch()
 export class AllExceptionsFilter
@@ -22,11 +23,22 @@ export class AllExceptionsFilter
     const request = ctx.getRequest<Request>();
 
     let status: number;
-    let message: string | object;
+    let message: string;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
-      message = exception.getResponse();
+      const exceptionResponse = exception.getResponse();
+      if (typeof exceptionResponse === 'string') {
+        message = exceptionResponse;
+      } else if (
+        typeof exceptionResponse === 'object' &&
+        exceptionResponse !== null &&
+        'message' in exceptionResponse
+      ) {
+        message = String(exceptionResponse.message);
+      } else {
+        message = 'An error occurred';
+      }
     } else {
       status = HttpStatus.INTERNAL_SERVER_ERROR;
       message = 'Internal server error';
@@ -37,9 +49,11 @@ export class AllExceptionsFilter
       );
     }
 
-    const errorResponse = {
+    const errorResponse: ApiErrorResponse = {
+      success: false,
       statusCode: status,
       message,
+      data: null,
       timestamp: new Date().toISOString(),
       path: request.url,
     };
