@@ -5,7 +5,13 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { Comment, CommentResponse } from './interfaces/comment.interface';
+import { Comment } from './interfaces/comment.interface';
+import {
+  CommentResponseDto,
+  CommentsResponseDto,
+  DeleteCommentResponseDto,
+  CommentDto,
+} from './dto/comment-response.dto';
 
 @Injectable()
 export class CommentService {
@@ -15,7 +21,7 @@ export class CommentService {
     articleSlug: string,
     createCommentDto: CreateCommentDto,
     authorId: number,
-  ): Promise<{ comment: CommentResponse }> {
+  ): Promise<CommentResponseDto> {
     const article = await this.prisma.article.findUnique({
       where: { slug: articleSlug },
     });
@@ -50,7 +56,7 @@ export class CommentService {
 
   async getCommentsByArticleSlug(
     articleSlug: string,
-  ): Promise<{ comments: CommentResponse[] }> {
+  ): Promise<CommentsResponseDto> {
     const article = await this.prisma.article.findUnique({
       where: { slug: articleSlug },
     });
@@ -86,7 +92,7 @@ export class CommentService {
     articleSlug: string,
     commentId: number,
     userId: number,
-  ): Promise<{ message: string; deletedCommentId: number }> {
+  ): Promise<DeleteCommentResponseDto> {
     const article = await this.prisma.article.findUnique({
       where: { slug: articleSlug },
     });
@@ -120,7 +126,7 @@ export class CommentService {
     };
   }
 
-  private formatCommentResponse(comment: Comment): CommentResponse {
+  private formatCommentResponse(comment: Comment): CommentDto {
     return {
       id: comment.id,
       createdAt: comment.createdAt,
