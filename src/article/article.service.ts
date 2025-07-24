@@ -7,6 +7,12 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
+import { ListArticlesQueryDto } from './dto/list-articles-query.dto';
+import {
+  ArticleResponseDto,
+  ArticlesResponseDto,
+  DeleteArticleResponseDto,
+} from './dto/article-response.dto';
 import { Article, ArticleResponse } from './interfaces/article.interface';
 
 @Injectable()
@@ -16,7 +22,7 @@ export class ArticleService {
   async createArticle(
     createArticleDto: CreateArticleDto,
     authorId: number,
-  ): Promise<{ article: ArticleResponse }> {
+  ): Promise<ArticleResponseDto> {
     const { title, description, body, tagList } = createArticleDto;
 
     const baseSlug = this.generateSlug(title);
@@ -49,7 +55,7 @@ export class ArticleService {
     };
   }
 
-  async findBySlug(slug: string): Promise<{ article: ArticleResponse }> {
+  async findBySlug(slug: string): Promise<ArticleResponseDto> {
     const article = await this.prisma.article.findUnique({
       where: { slug },
       include: {
@@ -78,7 +84,7 @@ export class ArticleService {
     slug: string,
     updateArticleDto: UpdateArticleDto,
     userId: number,
-  ): Promise<{ article: ArticleResponse }> {
+  ): Promise<ArticleResponseDto> {
     const { title, description, body, tagList } = updateArticleDto;
 
     const existingArticle = await this.prisma.article.findUnique({
@@ -164,7 +170,7 @@ export class ArticleService {
   async deleteArticle(
     slug: string,
     userId: number,
-  ): Promise<{ message: string; deletedSlug: string }> {
+  ): Promise<DeleteArticleResponseDto> {
     const article = await this.prisma.article.findUnique({
       where: { slug },
     });
@@ -187,6 +193,123 @@ export class ArticleService {
     };
   }
 
+  async listArticles(
+    query: ListArticlesQueryDto,
+  ): Promise<ArticlesResponseDto> {
+    const { tag, author, favorited, limit = 20, offset = 0 } = query;
+
+    const where: { authorId?: number } = {};
+
+    if (author) {
+      const authorUser = await this.prisma.user.findUnique({
+        where: { username: author },
+      });
+      if (!authorUser) {
+        return { articles: [], articlesCount: 0 };
+      }
+      where.authorId = authorUser.id;
+    }
+
+    // implement later
+    if (favorited) {
+      return { articles: [], articlesCount: 0 };
+    }
+
+    let articles = await this.prisma.article.findMany({
+      where,
+      include: {
+        author: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            bio: true,
+            image: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (tag) {
+      articles = articles.filter((article) => {
+        const tagList = article.tagList as string[] | null;
+        return tagList?.includes(tag);
+      });
+    }
+
+    const totalCount = articles.length;
+    const paginatedArticles = articles.slice(offset, offset + limit);
+
+    return {
+      articles: paginatedArticles.map((article) =>
+        this.formatArticleResponse(article, false),
+      ),
+      articlesCount: totalCount,
+    };
+  }
+
+  async getFeedArticles(
+    query: { limit?: number; offset?: number },
+    userId: number,
+  ): Promise<ArticlesResponseDto> {
+    const { limit = 20, offset = 0 } = query;
+
+    // implement following relationship later, for now return own articles
+    const [articles, totalCount] = await Promise.all([
+      this.prisma.article.findMany({
+        where: { authorId: userId },
+        include: {
+          author: {
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              bio: true,
+              image: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      this.prisma.article.count({ where: { authorId: userId } }),
+    ]);
+
+    return {
+      articles: articles.map((article) =>
+        this.formatArticleResponse(article, false),
+      ),
+      articlesCount: totalCount,
+    };
+  }
+
+  private formatArticleResponse(
+    article: Article,
+    includeBody = true,
+  ): ArticleResponse {
+    return {
+      slug: article.slug,
+      title: article.title,
+      description: article.description,
+      ...(includeBody && { body: article.body }),
+      tagList: Array.isArray(article.tagList)
+        ? (article.tagList as string[])
+        : [],
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+      favorited: false, // implement later
+      favoritesCount: 0, // implement later
+      author: {
+        username: article.author?.username || '',
+        bio: article.author?.bio || '',
+        image: article.author?.image || null,
+        following: false, // implement later
+      },
+    };
+  }
+
   private generateSlug(title: string): string {
     return title
       .toLowerCase()
@@ -203,19 +326,9 @@ export class ArticleService {
     let counter = 1;
 
     while (true) {
-      const conditions: Array<{ slug?: string; id?: { not: number } }> = [
-        { slug },
-      ];
+      const where = excludeId ? { slug, id: { not: excludeId } } : { slug };
 
-      if (excludeId) {
-        conditions.push({ id: { not: excludeId } });
-      }
-
-      const existingArticle = await this.prisma.article.findFirst({
-        where: {
-          AND: conditions,
-        },
-      });
+      const existingArticle = await this.prisma.article.findFirst({ where });
 
       if (!existingArticle) {
         return slug;
@@ -224,24 +337,5 @@ export class ArticleService {
       slug = `${baseSlug}-${counter}`;
       counter++;
     }
-  }
-
-  private formatArticleResponse(article: Article): ArticleResponse {
-    return {
-      slug: article.slug,
-      title: article.title,
-      description: article.description,
-      body: article.body,
-      tagList: Array.isArray(article.tagList)
-        ? (article.tagList as string[])
-        : [],
-      createdAt: article.createdAt,
-      updatedAt: article.updatedAt,
-      author: {
-        username: article.author?.username || '',
-        bio: article.author?.bio || '',
-        image: article.author?.image || null,
-      },
-    };
   }
 }
