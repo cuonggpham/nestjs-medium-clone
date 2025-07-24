@@ -20,7 +20,7 @@ export class ProfileService {
 
     let isFollowing = false;
     if (currentUserId) {
-      const follow = await (this.prisma.follow as any).findUnique({
+      const follow = await this.prisma.follow.findUnique({
         where: {
           followerId_followingId: {
             followerId: currentUserId,
@@ -93,7 +93,7 @@ export class ProfileService {
       throw new NotFoundException('Profile not found');
     }
 
-    await (this.prisma.follow as any).deleteMany({
+    await this.prisma.follow.deleteMany({
       where: {
         followerId: currentUserId,
         followingId: userToUnfollow.id,
