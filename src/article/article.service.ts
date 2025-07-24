@@ -51,11 +51,14 @@ export class ArticleService {
     });
 
     return {
-      article: this.formatArticleResponse(article),
+      article: await this.formatArticleResponse(article, true, authorId),
     };
   }
 
-  async findBySlug(slug: string): Promise<ArticleResponseDto> {
+  async findBySlug(
+    slug: string,
+    currentUserId?: number,
+  ): Promise<ArticleResponseDto> {
     const article = await this.prisma.article.findUnique({
       where: { slug },
       include: {
@@ -76,7 +79,7 @@ export class ArticleService {
     }
 
     return {
-      article: this.formatArticleResponse(article),
+      article: await this.formatArticleResponse(article, true, currentUserId),
     };
   }
 
@@ -163,7 +166,7 @@ export class ArticleService {
     });
 
     return {
-      article: this.formatArticleResponse(updatedArticle),
+      article: await this.formatArticleResponse(updatedArticle, true, userId),
     };
   }
 
@@ -195,6 +198,7 @@ export class ArticleService {
 
   async listArticles(
     query: ListArticlesQueryDto,
+    currentUserId?: number,
   ): Promise<ArticlesResponseDto> {
     const { tag, author, favorited, limit = 20, offset = 0 } = query;
 
@@ -242,8 +246,10 @@ export class ArticleService {
     const paginatedArticles = articles.slice(offset, offset + limit);
 
     return {
-      articles: paginatedArticles.map((article) =>
-        this.formatArticleResponse(article, false),
+      articles: await Promise.all(
+        paginatedArticles.map((article) =>
+          this.formatArticleResponse(article, false, currentUserId),
+        ),
       ),
       articlesCount: totalCount,
     };
@@ -255,10 +261,20 @@ export class ArticleService {
   ): Promise<ArticlesResponseDto> {
     const { limit = 20, offset = 0 } = query;
 
-    // implement following relationship later, for now return own articles
+    const followingUsers = await this.prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+
+    const followingIds = followingUsers.map((f) => f.followingId);
+
+    if (followingIds.length === 0) {
+      return { articles: [], articlesCount: 0 };
+    }
+
     const [articles, totalCount] = await Promise.all([
       this.prisma.article.findMany({
-        where: { authorId: userId },
+        where: { authorId: { in: followingIds } },
         include: {
           author: {
             select: {
@@ -274,21 +290,42 @@ export class ArticleService {
         take: limit,
         skip: offset,
       }),
-      this.prisma.article.count({ where: { authorId: userId } }),
+      this.prisma.article.count({ where: { authorId: { in: followingIds } } }),
     ]);
 
     return {
-      articles: articles.map((article) =>
-        this.formatArticleResponse(article, false),
+      articles: await Promise.all(
+        articles.map((article) =>
+          this.formatArticleResponse(article, false, userId),
+        ),
       ),
       articlesCount: totalCount,
     };
   }
 
-  private formatArticleResponse(
+  private async formatArticleResponse(
     article: Article,
     includeBody = true,
-  ): ArticleResponse {
+    currentUserId?: number,
+  ): Promise<ArticleResponse> {
+    let isFollowing = false;
+
+    if (
+      currentUserId &&
+      article.author &&
+      currentUserId !== article.author.id
+    ) {
+      const follow = await this.prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: currentUserId,
+            followingId: article.author.id,
+          },
+        },
+      });
+      isFollowing = !!follow;
+    }
+
     return {
       slug: article.slug,
       title: article.title,
@@ -305,7 +342,7 @@ export class ArticleService {
         username: article.author?.username || '',
         bio: article.author?.bio || '',
         image: article.author?.image || null,
-        following: false, // implement later
+        following: isFollowing,
       },
     };
   }
