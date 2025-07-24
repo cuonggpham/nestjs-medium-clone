@@ -25,6 +25,10 @@ model User {
 
   articles Article[]
   comments Comment[]
+
+  // Follow relationships
+  followers Follow[] @relation("UserFollowers")
+  following Follow[] @relation("UserFollowing")
 }
 
 //favourited & favoritedCount will be added later
@@ -60,4 +64,18 @@ model Comment {
 
   @@index([authorId])
   @@index([articleId])
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int
+  followingId Int
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
 }
