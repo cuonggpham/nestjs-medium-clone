@@ -245,10 +245,34 @@ export class ArticleService {
     const totalCount = articles.length;
     const paginatedArticles = articles.slice(offset, offset + limit);
 
+    const followMap = new Map<number, boolean>();
+    if (currentUserId && paginatedArticles.length > 0) {
+      const authorIds = paginatedArticles
+        .map((article) => article.author?.id)
+        .filter((id): id is number => id !== undefined && id !== currentUserId);
+
+      if (authorIds.length > 0) {
+        const follows = await this.prisma.follow.findMany({
+          where: {
+            followerId: currentUserId,
+            followingId: { in: authorIds },
+          },
+          select: { followingId: true },
+        });
+
+        follows.forEach((follow) => {
+          followMap.set(follow.followingId, true);
+        });
+      }
+    }
+
     return {
-      articles: await Promise.all(
-        paginatedArticles.map((article) =>
-          this.formatArticleResponse(article, false, currentUserId),
+      articles: paginatedArticles.map((article) =>
+        this.formatArticleResponseWithFollowMap(
+          article,
+          false,
+          currentUserId,
+          followMap,
         ),
       ),
       articlesCount: totalCount,
@@ -293,10 +317,17 @@ export class ArticleService {
       this.prisma.article.count({ where: { authorId: { in: followingIds } } }),
     ]);
 
+    // Since these are feed articles, all authors are being followed
+    const followMap = new Map<number, boolean>();
+    followingIds.forEach((id) => followMap.set(id, true));
+
     return {
-      articles: await Promise.all(
-        articles.map((article) =>
-          this.formatArticleResponse(article, false, userId),
+      articles: articles.map((article) =>
+        this.formatArticleResponseWithFollowMap(
+          article,
+          false,
+          userId,
+          followMap,
         ),
       ),
       articlesCount: totalCount,
@@ -324,6 +355,44 @@ export class ArticleService {
         },
       });
       isFollowing = !!follow;
+    }
+
+    return {
+      slug: article.slug,
+      title: article.title,
+      description: article.description,
+      ...(includeBody && { body: article.body }),
+      tagList: Array.isArray(article.tagList)
+        ? (article.tagList as string[])
+        : [],
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+      favorited: false, // implement later
+      favoritesCount: 0, // implement later
+      author: {
+        username: article.author?.username || '',
+        bio: article.author?.bio || '',
+        image: article.author?.image || null,
+        following: isFollowing,
+      },
+    };
+  }
+
+  private formatArticleResponseWithFollowMap(
+    article: Article,
+    includeBody = true,
+    currentUserId?: number,
+    followMap?: Map<number, boolean>,
+  ): ArticleResponse {
+    let isFollowing = false;
+
+    if (
+      currentUserId &&
+      article.author &&
+      currentUserId !== article.author.id &&
+      followMap
+    ) {
+      isFollowing = followMap.get(article.author.id) || false;
     }
 
     return {
