@@ -196,6 +196,87 @@ export class ArticleService {
     };
   }
 
+  async favoriteArticle(
+    slug: string,
+    userId: number,
+  ): Promise<ArticleResponseDto> {
+    const article = await this.prisma.article.findUnique({
+      where: { slug },
+      include: {
+        author: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            bio: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    const existingFavorite = await (this.prisma.favorite as import('@prisma/client').FavoriteDelegate<unknown>).findUnique({
+      where: {
+        userId_articleId: {
+          userId,
+          articleId: article.id,
+        },
+      },
+    });
+
+    if (!existingFavorite) {
+      await this.prisma.favorite.create({
+        data: {
+          userId,
+          articleId: article.id,
+        },
+      });
+    }
+
+    return {
+      article: await this.formatArticleResponse(article, true, userId),
+    };
+  }
+
+  async unfavoriteArticle(
+    slug: string,
+    userId: number,
+  ): Promise<ArticleResponseDto> {
+    const article = await this.prisma.article.findUnique({
+      where: { slug },
+      include: {
+        author: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            bio: true,
+            image: true,
+          },
+        },
+      },
+    });
+
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    await this.prisma.favorite.deleteMany({
+      where: {
+        userId,
+        articleId: article.id,
+      },
+    });
+
+    return {
+      article: await this.formatArticleResponse(article, true, userId),
+    };
+  }
+
   async listArticles(
     query: ListArticlesQueryDto,
     currentUserId?: number,
@@ -246,6 +327,9 @@ export class ArticleService {
     const paginatedArticles = articles.slice(offset, offset + limit);
 
     const followMap = new Map<number, boolean>();
+    const favoriteMap = new Map<number, boolean>();
+    const favoritesCountMap = new Map<number, number>();
+
     if (currentUserId && paginatedArticles.length > 0) {
       const authorIds = paginatedArticles
         .map((article) => article.author?.id)
@@ -264,6 +348,36 @@ export class ArticleService {
           followMap.set(follow.followingId, true);
         });
       }
+
+      const articleIds = paginatedArticles.map((article) => article.id);
+      const favorites = await this.prisma.favorite.findMany({
+        where: {
+          userId: currentUserId,
+          articleId: { in: articleIds },
+        },
+        select: { articleId: true },
+      });
+
+      favorites.forEach((favorite) => {
+        favoriteMap.set(favorite.articleId, true);
+      });
+    }
+
+    if (paginatedArticles.length > 0) {
+      const articleIds = paginatedArticles.map((article) => article.id);
+      const favoritesCounts = await this.prisma.favorite.groupBy({
+        by: ['articleId'],
+        where: {
+          articleId: { in: articleIds },
+        },
+        _count: {
+          id: true,
+        },
+      });
+
+      favoritesCounts.forEach((count) => {
+        favoritesCountMap.set(count.articleId, count._count.id);
+      });
     }
 
     return {
@@ -273,6 +387,8 @@ export class ArticleService {
           false,
           currentUserId,
           followMap,
+          favoriteMap,
+          favoritesCountMap,
         ),
       ),
       articlesCount: totalCount,
@@ -317,9 +433,41 @@ export class ArticleService {
       this.prisma.article.count({ where: { authorId: { in: followingIds } } }),
     ]);
 
-    // Since these are feed articles, all authors are being followed
     const followMap = new Map<number, boolean>();
     followingIds.forEach((id) => followMap.set(id, true));
+
+    const favoriteMap = new Map<number, boolean>();
+    const favoritesCountMap = new Map<number, number>();
+
+    if (articles.length > 0) {
+      const articleIds = articles.map((article) => article.id);
+
+      const favorites = await this.prisma.favorite.findMany({
+        where: {
+          userId: userId,
+          articleId: { in: articleIds },
+        },
+        select: { articleId: true },
+      });
+
+      favorites.forEach((favorite) => {
+        favoriteMap.set(favorite.articleId, true);
+      });
+
+      const favoritesCounts = await this.prisma.favorite.groupBy({
+        by: ['articleId'],
+        where: {
+          articleId: { in: articleIds },
+        },
+        _count: {
+          id: true,
+        },
+      });
+
+      favoritesCounts.forEach((count) => {
+        favoritesCountMap.set(count.articleId, count._count.id);
+      });
+    }
 
     return {
       articles: articles.map((article) =>
@@ -328,6 +476,8 @@ export class ArticleService {
           false,
           userId,
           followMap,
+          favoriteMap,
+          favoritesCountMap,
         ),
       ),
       articlesCount: totalCount,
@@ -340,6 +490,7 @@ export class ArticleService {
     currentUserId?: number,
   ): Promise<ArticleResponse> {
     let isFollowing = false;
+    let isFavorited = false;
 
     if (
       currentUserId &&
@@ -357,6 +508,25 @@ export class ArticleService {
       isFollowing = !!follow;
     }
 
+    if (currentUserId) {
+      const favorite = await this.prisma.favorite.findUnique({
+        where: {
+          userId_articleId: {
+            userId: currentUserId,
+            articleId: article.id,
+          },
+        },
+      });
+      isFavorited = !!favorite;
+    }
+
+  
+    const favoritesCount = await this.prisma.favorite.count({
+      where: {
+        articleId: article.id,
+      },
+    });
+
     return {
       slug: article.slug,
       title: article.title,
@@ -367,8 +537,8 @@ export class ArticleService {
         : [],
       createdAt: article.createdAt,
       updatedAt: article.updatedAt,
-      favorited: false, // implement later
-      favoritesCount: 0, // implement later
+      favorited: isFavorited,
+      favoritesCount: favoritesCount,
       author: {
         username: article.author?.username || '',
         bio: article.author?.bio || '',
@@ -383,8 +553,12 @@ export class ArticleService {
     includeBody = true,
     currentUserId?: number,
     followMap?: Map<number, boolean>,
+    favoriteMap?: Map<number, boolean>,
+    favoritesCountMap?: Map<number, number>,
   ): ArticleResponse {
     let isFollowing = false;
+    let isFavorited = false;
+    let favoritesCount = 0;
 
     if (
       currentUserId &&
@@ -393,6 +567,14 @@ export class ArticleService {
       followMap
     ) {
       isFollowing = followMap.get(article.author.id) || false;
+    }
+
+    if (currentUserId && favoriteMap) {
+      isFavorited = favoriteMap.get(article.id) || false;
+    }
+
+    if (favoritesCountMap) {
+      favoritesCount = favoritesCountMap.get(article.id) || 0;
     }
 
     return {
@@ -405,8 +587,8 @@ export class ArticleService {
         : [],
       createdAt: article.createdAt,
       updatedAt: article.updatedAt,
-      favorited: false, // implement later
-      favoritesCount: 0, // implement later
+      favorited: isFavorited,
+      favoritesCount: favoritesCount,
       author: {
         username: article.author?.username || '',
         bio: article.author?.bio || '',
